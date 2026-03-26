@@ -21,3 +21,13 @@ The `monitoring/drift_detection.py` script identifies shifts between `reference_
 
 ### **Retraining Loop**
 When the monitor flags significant drift (e.g., using a Kolmogorov-Smirnov test), `retraining/retrain.py` is triggered to update `model.pkl` using the most recent production data samples.
+
+---
+##Installation 
+-pip install -r requirements.txt
+-python data/generate_data.py
+-python data/generate_production_data.py
+-python model/train_model.py
+-python monitoring/monitor.py
+-python retraining/retrain.py
+-uvicorn api.app:app --reload
