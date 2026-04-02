@@ -4,7 +4,7 @@ An **MLOps pipeline** to monitor machine learning models in production, detect d
 
 ---
 
-## 🚀 Project Overview
+##  Project Overview
 
 This project demonstrates a **full ML lifecycle**:
 
@@ -17,7 +17,7 @@ This project demonstrates a **full ML lifecycle**:
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 | Directory | Description |
 | :--- | :--- |
@@ -32,7 +32,7 @@ This project demonstrates a **full ML lifecycle**:
 
 ---
 
-## 🔑 Key Components
+##  Key Components
 
 ### 1. Drift Detection
 
@@ -67,10 +67,12 @@ This project demonstrates a **full ML lifecycle**:
 
 ---
 
-## 💻 Installation & Running the Project
-
-1. **Clone the repository**:
-
-```bash
-git clone <your-repo-url>
-cd drift_detection_system
+##  Installation & run
+ - pip install -r requirements.txt
+ - python data/generate_data.py
+ - python data/generate_production_data.py
+ - python model/train_model.py
+ - python monitoring/monitor.py
+ - python retraining/retrain.py
+ - uvicorn api.app:app --reload
+ - mlflow ui 
