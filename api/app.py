@@ -1,73 +1,54 @@
 from fastapi import FastAPI, Form
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 import joblib
 import os
 
-# Resolve absolute path to model.pkl
+# Paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_PATH = os.path.join(BASE_DIR, "model", "model.pkl")
+INDEX_HTML = os.path.join(BASE_DIR, "templates", "index.html")
 
 # Load trained model
 if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError(
-        f"Model file not found at {MODEL_PATH}. "
-        f"Run 'python model/train_model.py' first."
-    )
-
+    raise FileNotFoundError(f"Model not found at {MODEL_PATH}. Train the model first.")
 model = joblib.load(MODEL_PATH)
 
+# FastAPI app
 app = FastAPI(title="Fraud Detection API")
 
+# Serve static files (CSS, JS, images)
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+
+# Function to read template and optionally insert result
+def render_html(result_html: str = "") -> str:
+    with open(INDEX_HTML, "r") as f:
+        html_content = f.read()
+    # Replace placeholder with result (empty if first visit)
+    html_content = html_content.replace("{{ result }}", result_html)
+    return html_content
+
+# Homepage route
 @app.get("/", response_class=HTMLResponse)
 def home():
-    return """
-    <html>
-        <head>
-            <title>Fraud Detection</title>
-        </head>
-        <body>
-            <h2>Fraud Detection Form</h2>
-            <form action="/predict" method="post">
-                <label>Transaction Amount:</label>
-                <input type="number" step="any" name="transaction_amount" required><br><br>
-                
-                <label>Account Age (days):</label>
-                <input type="number" name="account_age_days" required><br><br>
-                
-                <label>Number of Transactions:</label>
-                <input type="number" name="num_transactions" required><br><br>
-                
-                <button type="submit">Predict</button>
-            </form>
-        </body>
-    </html>
-    """
+    return HTMLResponse(content=render_html())
 
+# Prediction route
 @app.post("/predict", response_class=HTMLResponse)
 def predict(
     transaction_amount: float = Form(...),
     account_age_days: int = Form(...),
     num_transactions: int = Form(...)
 ):
-    try:
-        X = [[transaction_amount, account_age_days, num_transactions]]
-        prediction = model.predict(X)[0]
-        result = "Fraudulent Transaction" if prediction == 1 else "Legitimate Transaction"
-    except Exception as e:
-        result = f"Error: {str(e)}"
+    # Make prediction
+    X = [[transaction_amount, account_age_days, num_transactions]]
+    prediction = model.predict(X)[0]
 
-    return f"""
-    <html>
-        <head><title>Prediction Result</title></head>
-        <body>
-            <h2>Prediction Result</h2>
-            <p><b>{result}</b></p>
-            <a href="/">Go Back</a>
-        </body>
-    </html>
-    """
+    # Prepare result HTML
+    if prediction == 1:
+        result_html = '<div class="result fraud">Fraudulent Transaction</div>'
+    else:
+        result_html = '<div class="result legit">Legitimate Transaction</div>'
 
-# Allow running directly with python api/app.py
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000, reload=True)
+    # Return HTML with result inserted
+    return HTMLResponse(content=render_html(result_html))

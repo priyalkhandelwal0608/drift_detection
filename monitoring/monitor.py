@@ -1,8 +1,11 @@
 import pandas as pd
 from drift_detection import detect_drift
+import os
 
-REFERENCE_PATH = "../data/reference_data.csv"
-PRODUCTION_PATH = "../data/production_data.csv"
+REFERENCE_PATH = os.path.join("data", "reference_data.csv")
+import os
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+PRODUCTION_PATH = os.path.join(BASE_DIR, "data", "production_data.csv")
 
 def monitor():
 

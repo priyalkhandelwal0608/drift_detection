@@ -3,41 +3,55 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 import joblib
 import os
+import mlflow
+import mlflow.sklearn
 
-def retrain():
-    # Paths relative to project root
-    REFERENCE = os.path.join("data", "reference_data.csv")
-    MODEL_PATH = os.path.join("model", "model.pkl")
+# Paths
+REFERENCE_PATH = os.path.join("data", "reference_data.csv")
+PRODUCTION_PATH = os.path.join("data", "production_data.csv")
+MODEL_PATH = os.path.join("model", "model.pkl")
 
-    # Check if reference dataset exists
-    if not os.path.exists(REFERENCE):
-        raise FileNotFoundError(
-            f"Reference dataset not found at {REFERENCE}. "
-            f"Run 'python data/generate_data.py' first."
-        )
+# Load reference data
+ref = pd.read_csv(REFERENCE_PATH)
 
-    # Load reference dataset
-    ref = pd.read_csv(REFERENCE)
+# Load production data
+if not os.path.exists(PRODUCTION_PATH):
+    raise FileNotFoundError(f"Production dataset not found at {PRODUCTION_PATH}")
 
-    # Features and target
-    if "fraud" not in ref.columns:
-        raise ValueError("Reference dataset must contain a 'fraud' column as target.")
+prod = pd.read_csv(PRODUCTION_PATH)
 
-    X = ref[["transaction_amount", "account_age_days", "num_transactions"]]
-    y = ref["fraud"]
+# Map predictions back to fraud column (optional: only if you have true labels)
+# Here we assume production data doesn't have 'fraud' labels; if you have them, use them instead
+if "fraud" not in prod.columns:
+    prod["fraud"] = prod.get("prediction", 0)  # use model predictions as pseudo-labels
 
-    # Train/test split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
+# Append production data to reference data
+updated_ref = pd.concat([ref, prod[["transaction_amount", "account_age_days", "num_transactions", "fraud"]]], ignore_index=True)
 
-    # Retrain model
+# Save updated reference dataset
+updated_ref.to_csv(REFERENCE_PATH, index=False)
+print(f"Reference dataset updated with production data. Total rows: {len(updated_ref)}")
+
+# Split features and target
+X = updated_ref[["transaction_amount", "account_age_days", "num_transactions"]]
+y = updated_ref["fraud"]
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Retrain model
+with mlflow.start_run():
     model = RandomForestClassifier(random_state=42)
     model.fit(X_train, y_train)
 
-    # Save updated model
+    # Evaluate
+    acc = model.score(X_test, y_test)
+
+    # Log retraining info
+    mlflow.log_param("retrain", True)
+    mlflow.log_metric("accuracy", acc)
+    mlflow.sklearn.log_model(model, "model")
+
+    # Save retrained model
     joblib.dump(model, MODEL_PATH)
     print(f"Model retrained and saved at {MODEL_PATH}")
-
-if __name__ == "__main__":
-    retrain()
+    print(f"Accuracy: {acc}")
